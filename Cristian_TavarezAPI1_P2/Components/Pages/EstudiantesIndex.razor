@@ -1,0 +1,59 @@
+﻿@page "/estudiantes"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Cristian_TavarezAPI1_P2.Models
+@using Cristian_TavarezAPI1_P2.Services
+@inject AsignacionesService service
+
+<PageTitle>Lista de Estudiantes</PageTitle>
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h2 class="mb-0 text-dark"><i class="bi bi-people-fill me-2"></i>Estudiantes Registrados</h2>
+        </div>
+
+        <div class="card-body">
+            
+            <div class="table-responsive shadow-sm rounded-3">
+                <QuickGrid Items="@estudiantesQuery" Class="table table-hover align-middle mb-0 bg-white">
+
+                    <PropertyColumn Property="@(e => e.EstudianteId)" Title="ID" Sortable="true" />
+
+                    <PropertyColumn Property="@(e => e.Nombres)" Title="Nombre Completo" Sortable="true" />
+
+                    <PropertyColumn Property="@(e => e.Email)" Title="Correo Electrónico" />
+
+                   
+                    <TemplateColumn Title="Balance de Puntos" Sortable="true">
+                        <div class="d-flex align-items-center">
+                            <span class="badge @(context.BalancePuntos > 0 ? "bg-success" : "bg-secondary") rounded-pill px-3 py-2 fs-6">
+                                <i class="bi bi-star-fill me-1"></i> @context.BalancePuntos pts
+                            </span>
+                        </div>
+                    </TemplateColumn>
+
+                </QuickGrid>
+            </div>
+
+            
+            <div class="mt-4 p-3 bg-light rounded-3 border">
+                <p class="mb-0 text-muted">
+                    <strong>Total de Estudiantes:</strong> @estudiantes.Count |
+                    <strong>Puntos Totales Distribuidos:</strong> @estudiantes.Sum(e => e.BalancePuntos)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<Estudiantes> estudiantes = new();
+    IQueryable<Estudiantes> estudiantesQuery => estudiantes.AsQueryable();
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+        estudiantes = await service.ListarEstudiantes();
+    }
+}
