@@ -1,0 +1,147 @@
+﻿@page "/asignaciones"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Cristian_TavarezAPI1_P2.Models
+@using Cristian_TavarezAPI1_P2.Services
+@inject AsignacionesService service
+
+<PageTitle>Consulta de Asignaciones</PageTitle>
+
+<div class="container-fluid">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h2 class="mb-0 text-dark">Consulta de Asignación de Puntos</h2>
+        </div>
+
+        <div class="card-body">
+            
+            <div class="row g-3 mb-4 p-4 rounded-3 border bg-white shadow-sm align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Estudiante</label>
+                    <select class="form-select border-light-subtle" @bind="filtroEstudianteId">
+                        <option value="0">Nombre del estudiante</option>
+                        @foreach (var est in estudiantes)
+                        {
+                            <option value="@est.EstudianteId">@est.Nombres</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Fecha Desde</label>
+                    <input type="date" class="form-control border-light-subtle" @bind="fechaDesde" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Fecha Hasta</label>
+                    <input type="date" class="form-control border-light-subtle" @bind="fechaHasta" />
+                </div>
+                <div class="col-md-5 d-flex gap-2">
+                    <button class="btn btn-primary px-4 shadow-sm" @onclick="Consultar">
+                        <i class="bi bi-search"></i> Consultar
+                    </button>
+                    <button class="btn btn-secondary px-4 shadow-sm" @onclick="LimpiarFiltros">
+                        Limpiar Filtros
+                    </button>
+                </div>
+            </div>
+
+           
+            <div class="alert alert-info d-flex justify-content-between align-items-center py-3 px-4 border-0 shadow-sm mb-4" style="background-color: #e0f7fa;">
+                <div>
+                    <span class="me-4 text-dark"><strong>Registros:</strong> @listaAsignaciones.Count</span>
+                    <span class="text-dark"><strong>Total Puntos:</strong> @listaAsignaciones.Sum(a => a.TotalPuntos)</span>
+                </div>
+
+            </div>
+
+            <div class="mb-3">
+                <a href="/asignaciones/crear" class="btn btn-success px-4 shadow-sm">
+                    <i class="bi bi-plus-lg"></i> Nuevo Registro
+                </a>
+            </div>
+
+           
+            <div class="table-responsive shadow-sm rounded-3">
+                <QuickGrid Items="@FilteredAsignaciones" Pagination="@paginacion" Class="table table-hover align-middle mb-0 bg-white">
+                  
+                    <TemplateColumn Title="#" Sortable="true">
+                        @{
+                            
+                            int index = listaAsignaciones.IndexOf(context) + 1;
+                            <strong>@index</strong>
+                        }
+                    </TemplateColumn>
+
+                    <PropertyColumn Property="@(a => a.Estudiante != null ? a.Estudiante.Nombres : "N/A")" Title="Estudiante" Sortable="true" />
+
+                    <TemplateColumn Title="Conceptos / Tipos">
+                        @foreach (var det in context.Detalles)
+                        {
+                            <span class="badge rounded-pill me-1 px-3 py-2 shadow-sm bg-primary text-white">
+                                @det.TipoPunto?.Nombre (@det.CantidadPuntos)
+                            </span>
+                        }
+                    </TemplateColumn>
+
+                    <PropertyColumn Property="@(a => a.TotalPuntos)" Title="Puntos" Sortable="true" />
+                    <PropertyColumn Property="@(a => a.Fecha)" Title="Fecha" Format="dd/MM/yyyy" Sortable="true" />
+
+                    <TemplateColumn Title="Acciones">
+                        <div class="btn-group">
+                            <a href="/asignaciones/editar/@context.IdAsignacion" class="btn btn-warning btn-sm fw-bold">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm ms-2" @onclick="() => Eliminar(context.IdAsignacion)">
+                                <i class="bi bi-trash"></i>Eliminar
+                            </button>
+                        </div>
+                    </TemplateColumn>
+                </QuickGrid>
+            </div>
+
+           
+            <div class="mt-4 d-flex justify-content-end">
+                <Paginator State="@paginacion" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<AsignacionesPuntos> listaAsignaciones = new();
+    List<Estudiantes> estudiantes = new();
+
+   
+    PaginationState paginacion = new() { ItemsPerPage = 5 };
+
+    int filtroEstudianteId = 0;
+    DateTime? fechaDesde;
+    DateTime? fechaHasta;
+
+    
+    IQueryable<AsignacionesPuntos> FilteredAsignaciones => listaAsignaciones.AsQueryable();
+
+    protected override async Task OnInitializedAsync()
+    {
+        estudiantes = await service.ListarEstudiantes();
+        await Consultar();
+    }
+
+    async Task Consultar()
+    {
+        listaAsignaciones = await service.ListarConFiltros(filtroEstudianteId, fechaDesde, fechaHasta);
+    }
+
+    async Task LimpiarFiltros()
+    {
+        filtroEstudianteId = 0;
+        fechaDesde = null;
+        fechaHasta = null;
+        await Consultar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await service.Eliminar(id);
+        await Consultar();
+    }
+}
