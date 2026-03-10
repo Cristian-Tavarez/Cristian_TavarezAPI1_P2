@@ -1,91 +1,59 @@
 ﻿@page "/tipos-puntos"
 @rendermode InteractiveServer
-@using Microsoft.AspNetCore.Components.QuickGrid
 @using Cristian_TavarezAPI1_P2.Models
 @using Cristian_TavarezAPI1_P2.Services
 @inject AsignacionesService service
 
-<PageTitle>Configuración de Puntos</PageTitle>
+<PageTitle>Configuración de Tipos de Puntos</PageTitle>
 
-<div class="container-fluid">
+<div class="container mt-4">
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3">
             <h2 class="mb-0 text-dark">Configuración de Tipos de Puntos</h2>
         </div>
 
         <div class="card-body">
-            @* FORMULARIO PARA CREAR NUEVOS TIPOS *@
-            <div class="row g-3 mb-4 p-4 rounded-3 border bg-light shadow-sm align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Nombre del Concepto</label>
-                    <input class="form-control shadow-sm" @bind="nuevoTipo.Nombre" placeholder="Ej: Participación" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Valor (Puntos)</label>
-                    <input type="number" class="form-control shadow-sm" @bind="nuevoTipo.ValorPuntos" />
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-success w-100 py-2 shadow-sm" @onclick="GuardarTipo">
-                        <i class="bi bi-save"></i> Guardar Concepto
-                    </button>
-                </div>
-            </div>
-
-            @* TABLA CON QUICKGRID *@
+           
             <div class="table-responsive shadow-sm rounded-3">
-                <QuickGrid Items="@TiposQueryable" Context="tipo" Class="table table-hover align-middle mb-0 bg-white">
-                    <PropertyColumn Property="@(t => t.TipoId)" Title="ID" Sortable="true" />
-                    <PropertyColumn Property="@(t => t.Nombre)" Title="Concepto" Sortable="true" />
-                    <PropertyColumn Property="@(t => t.ValorPuntos)" Title="Valor Base" Sortable="true" />
-
-                    <TemplateColumn Title="Estado" Context="tipo">
-                        <span class="badge @(tipo.Activo ? "bg-success" : "bg-secondary") px-3">
-                            @(tipo.Activo ? "Activo" : "Inactivo")
-                        </span>
-                    </TemplateColumn>
-
-                    <TemplateColumn Title="Acciones" Context="tipo" Class="text-center">
-                        <button class="btn btn-sm btn-outline-danger shadow-sm" @onclick="() => Eliminar(tipo.TipoId)">
-                            <i class="bi bi-trash"></i> Eliminar
-                        </button>
-                    </TemplateColumn>
-                </QuickGrid>
+                <table class="table table-hover align-middle mb-0 bg-white">
+                    <thead class="bg-light">
+                        <tr>
+                            <th style="width: 80px;" class="text-center">ID</th>
+                            <th>Concepto</th>
+                            <th>Valor Base</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tipo in listaTipos)
+                        {
+                            <tr>
+                                <td class="fw-bold text-center">@tipo.TipoId</td>
+                                <td>@tipo.Nombre</td>
+                                <td>@tipo.ValorPuntos</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success px-3 py-2">Activo</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    TiposPuntos nuevoTipo = new() { Activo = true };
     List<TiposPuntos> listaTipos = new();
-
-    IQueryable<TiposPuntos> TiposQueryable => listaTipos.AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {
-        await Consultar();
+        await CargarTipos();
     }
 
-    async Task Consultar()
+    async Task CargarTipos()
     {
-        // Obtiene la lista actualizada desde el service
+      
         listaTipos = await service.ListarTiposActivos();
-    }
-
-    async Task GuardarTipo()
-    {
-        if (!string.IsNullOrWhiteSpace(nuevoTipo.Nombre) && nuevoTipo.ValorPuntos > 0)
-        {
-            await service.GuardarTipoPunto(nuevoTipo);
-            nuevoTipo = new() { Activo = true };
-            await Consultar(); // Refresca la tabla
-        }
-    }
-
-    // CORRECCIÓN: Ahora llama al método del Service y refresca la pantalla
-    async Task Eliminar(int id)
-    {
-        await service.EliminarTipoPunto(id);
-        await Consultar(); // Muy importante para que el registro desaparezca de la vista
     }
 }
