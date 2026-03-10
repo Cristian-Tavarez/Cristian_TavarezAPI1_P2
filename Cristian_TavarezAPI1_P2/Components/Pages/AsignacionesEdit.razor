@@ -1,0 +1,148 @@
+﻿@page "/asignaciones/editar/{id:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Cristian_TavarezAPI1_P2.Models
+@using Cristian_TavarezAPI1_P2.Services
+@inject AsignacionesService service
+@inject NavigationManager nav
+
+<PageTitle>Editar Asignación</PageTitle>
+
+@if (asignacion == null)
+{
+    <div class="container text-center mt-5">
+        <div class="spinner-border text-warning" role="status"></div>
+        <p>Cargando datos de la asignación...</p>
+    </div>
+}
+else
+{
+  
+    <EditForm Model="asignacion" OnValidSubmit="Guardar" Context="editContext">
+        <DataAnnotationsValidator />
+        <div class="container">
+            <div class="card shadow-lg border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Asignación #@id</h3>
+                </div>
+
+                <div class="card-body">
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Estudiante</label>
+                            <input class="form-control bg-light" value="@asignacion.Estudiante?.Nombres" disabled />
+                            <small class="text-muted">El estudiante no se puede cambiar en edición.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Fecha</label>
+                            <InputDate class="form-control" @bind-Value="asignacion.Fecha" />
+                        </div>
+                    </div>
+
+                   
+                    <div class="row g-2 mb-4 p-3 rounded border bg-light align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nuevo Concepto</label>
+                            <select class="form-select" @onchange="OnTipoPuntoChanged">
+                                <option value="0">-- Seleccione para agregar --</option>
+                                @foreach (var tp in tiposPuntos)
+                                {
+                                    <option value="@tp.TipoId">@tp.Nombre (@tp.ValorPuntos pts)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Puntos</label>
+                            <InputNumber class="form-control" @bind-Value="detalleTemp.CantidadPuntos" readonly />
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-success w-100" @onclick="AgregarDetalle">
+                                <i class="bi bi-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    
+                    <div class="table-responsive">
+                        <QuickGrid Items="@DetallesQueryable" Class="table table-sm table-hover align-middle">
+                            <TemplateColumn Title="Concepto" Context="fila">
+                                @tiposPuntos.FirstOrDefault(t => t.TipoId == fila.TipoPuntoId)?.Nombre
+                            </TemplateColumn>
+
+                            <PropertyColumn Property="@(d => d.CantidadPuntos)" Title="Puntos" />
+
+                            <TemplateColumn Title="Eliminar" Context="fila">
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => EliminarDetalle(fila)">
+                                    <i class="bi bi-trash"></i>Eliminar
+                                </button>
+                            </TemplateColumn>
+                        </QuickGrid>
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between align-items-center bg-white">
+                    <h4 class="text-primary mb-0">Total Actual: @asignacion.Detalles.Sum(d => d.CantidadPuntos) pts</h4>
+                    <div>
+                        <a href="/asignaciones" class="btn btn-secondary me-2">Volver</a>
+                        <button type="submit" class="btn btn-warning fw-bold">Guardar Cambios</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    AsignacionesPuntos? asignacion;
+    AsignacionesPuntosDetalle detalleTemp = new();
+    List<TiposPuntos> tiposPuntos = new();
+
+    
+    IQueryable<AsignacionesPuntosDetalle> DetallesQueryable =>
+        asignacion?.Detalles.AsQueryable() ?? new List<AsignacionesPuntosDetalle>().AsQueryable();
+
+    protected override async Task OnInitializedAsync()
+    {
+        tiposPuntos = await service.ListarTiposActivos();
+        asignacion = await service.BuscarPorId(id);
+    }
+
+    void OnTipoPuntoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int selectedId) && selectedId > 0)
+        {
+            var tipo = tiposPuntos.FirstOrDefault(t => t.TipoId == selectedId);
+            if (tipo != null)
+            {
+                detalleTemp.TipoPuntoId = selectedId;
+                detalleTemp.CantidadPuntos = tipo.ValorPuntos;
+            }
+        }
+    }
+
+    void AgregarDetalle()
+    {
+        if (detalleTemp.TipoPuntoId > 0)
+        {
+            asignacion?.Detalles.Add(new AsignacionesPuntosDetalle
+            {
+                TipoPuntoId = detalleTemp.TipoPuntoId,
+                CantidadPuntos = detalleTemp.CantidadPuntos
+            });
+            detalleTemp = new();
+        }
+    }
+
+    void EliminarDetalle(AsignacionesPuntosDetalle det) => asignacion?.Detalles.Remove(det);
+
+    async Task Guardar()
+    {
+        if (asignacion != null && asignacion.Detalles.Count > 0)
+        {
+            await service.Guardar(asignacion);
+            nav.NavigateTo("/asignaciones");
+        }
+    }
+}
