@@ -1,0 +1,205 @@
+﻿@page "/asignaciones/crear"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Cristian_TavarezAPI1_P2.Models
+@using Cristian_TavarezAPI1_P2.Services
+@inject AsignacionesService service
+@inject NavigationManager nav
+
+<PageTitle>Nueva Asignación</PageTitle>
+
+<EditForm Model="asignacion" OnValidSubmit="Guardar" Context="formContext">
+    <DataAnnotationsValidator />
+
+    <div class="container-fluid">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h2 class="mb-0 text-dark">Nueva Asignación de Puntos</h2>
+            </div>
+
+            <div class="card-body">
+               
+                <div class="row g-3 mb-4 p-4 rounded-3 border bg-white shadow-sm">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Estudiante</label>
+                        <div class="input-group">
+                            <InputSelect class="form-select border-light-subtle" @bind-Value="asignacion.EstudianteId">
+                                <option value="0">Nombre del estudiante</option>
+                                @foreach (var est in estudiantes)
+                                {
+                                    <option value="@est.EstudianteId">@est.Nombres (Balance: @est.BalancePuntos)</option>
+                                }
+                            </InputSelect>
+                            
+                            <button class="btn btn-outline-primary" type="button" @onclick="AbrirModalEstudiante">
+                                <i class="bi bi-person-plus-fill"></i> Nuevo
+                            </button>
+                        </div>
+                        <ValidationMessage For="@(() => asignacion.EstudianteId)" class="text-danger small" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Fecha</label>
+                        <InputDate class="form-control border-light-subtle" @bind-Value="asignacion.Fecha" />
+                    </div>
+                </div>
+
+               
+                <div class="row g-3 mb-4 p-4 rounded-3 border bg-light shadow-sm align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold text-secondary">Concepto / Tipo de Punto</label>
+                        <select class="form-select" @onchange="OnTipoPuntoChanged">
+                            <option value="0">Seleccione el concepto</option>
+                            @foreach (var tp in tiposPuntos)
+                            {
+                                <option value="@tp.TipoId">@tp.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-secondary">Puntos a Grabar</label>
+                        <InputNumber class="form-control bg-white" @bind-Value="detalleTemp.CantidadPuntos" readonly />
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-success w-100 py-2 shadow-sm" @onclick="AgregarDetalle">
+                            Agregar Detalle
+                        </button>
+                    </div>
+                </div>
+
+               
+                <div class="table-responsive shadow-sm rounded-3 mt-4">
+                    <QuickGrid Items="@DetallesQueryable" Class="table table-hover align-middle mb-0 bg-white">
+                        <TemplateColumn Title="Concepto" Context="itemDetalle">
+                            <span class="badge rounded-pill bg-info text-dark px-3 py-2">
+                                @tiposPuntos.FirstOrDefault(t => t.TipoId == itemDetalle.TipoPuntoId)?.Nombre
+                            </span>
+                        </TemplateColumn>
+                        <PropertyColumn Property="@(d => d.CantidadPuntos)" Title="Puntos" />
+                        <TemplateColumn Title="Acción" Class="text-center" Context="itemDetalle">
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => EliminarDetalle(itemDetalle)">
+                                Eliminar
+                            </button>
+                        </TemplateColumn>
+                    </QuickGrid>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white py-3 border-top">
+                <div class="alert alert-info d-flex justify-content-between align-items-center py-3 px-4 border-0 mb-3 shadow-sm" style="background-color: #e0f7fa;">
+                    <span class="text-dark"><strong>Items en detalle:</strong> @asignacion.Detalles.Count</span>
+                    <h4 class="mb-0 fw-bold" style="color: #006064;">Total Puntos: @asignacion.Detalles.Sum(d => d.CantidadPuntos)</h4>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <a href="/asignaciones" class="btn btn-secondary me-2 px-4">Volver</a>
+                    <button type="submit" class="btn btn-primary px-5 shadow-sm">Guardar Registro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Registrar Nuevo Estudiante</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                </div>
+                <EditForm Model="nuevoEstudiante" OnValidSubmit="GuardarEstudiante">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nombres Completos</label>
+                            <InputText class="form-control" @bind-Value="nuevoEstudiante.Nombres" placeholder="Ej. Cristian Tavarez" />
+                            <ValidationMessage For="@(() => nuevoEstudiante.Nombres)" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Estudiante</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    AsignacionesPuntos asignacion = new() { Fecha = DateTime.Now };
+    AsignacionesPuntosDetalle detalleTemp = new();
+    List<Estudiantes> estudiantes = new();
+    List<TiposPuntos> tiposPuntos = new();
+
+
+    bool mostrarModal = false;
+    Estudiantes nuevoEstudiante = new() { BalancePuntos = 0 };
+
+    IQueryable<AsignacionesPuntosDetalle> DetallesQueryable => asignacion.Detalles.AsQueryable();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    async Task CargarDatos()
+    {
+        estudiantes = await service.ListarEstudiantes();
+        tiposPuntos = await service.ListarTiposActivos();
+    }
+
+    void OnTipoPuntoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id) && id > 0)
+        {
+            var tipo = tiposPuntos.FirstOrDefault(t => t.TipoId == id);
+            if (tipo != null)
+            {
+                detalleTemp.TipoPuntoId = id;
+                detalleTemp.CantidadPuntos = tipo.ValorPuntos;
+            }
+        }
+    }
+
+    void AgregarDetalle()
+    {
+        if (detalleTemp.TipoPuntoId > 0)
+        {
+            asignacion.Detalles.Add(new AsignacionesPuntosDetalle
+            {
+                TipoPuntoId = detalleTemp.TipoPuntoId,
+                CantidadPuntos = detalleTemp.CantidadPuntos
+            });
+            detalleTemp = new();
+        }
+    }
+
+    void EliminarDetalle(AsignacionesPuntosDetalle det) => asignacion.Detalles.Remove(det);
+
+
+    void AbrirModalEstudiante() => mostrarModal = true;
+    void CerrarModal() => mostrarModal = false;
+
+    async Task GuardarEstudiante()
+    {
+        if (!string.IsNullOrWhiteSpace(nuevoEstudiante.Nombres))
+        {
+
+            await service.CrearEstudianteRapido(nuevoEstudiante);
+
+            await CargarDatos(); 
+            asignacion.EstudianteId = nuevoEstudiante.EstudianteId;
+            nuevoEstudiante = new() { BalancePuntos = 0 };
+            CerrarModal();
+        }
+    }
+
+    async Task Guardar()
+    {
+        if (asignacion.Detalles.Count > 0 && asignacion.EstudianteId > 0)
+        {
+            await service.Guardar(asignacion);
+            nav.NavigateTo("/asignaciones");
+        }
+    }
+}
